@@ -1,21 +1,22 @@
-"""Welcome to Reflex! This file outlines the steps to create a basic app."""
-
+import json
 import typing
-from typing import Union
 
 import reflex as rx
 
 from rxconfig import config
 
 
-class Expense:
-    def __init__(
-        self, title: str = "", price: float = 0.0, due: int = 0, paid: bool = False
-    ):
-        self.title: str = title
-        self.price: float = price
-        self.due: int = due
-        self.paid: bool = False
+class Expense(rx.Component):
+    title: rx.Var[str]
+    price: rx.Var[float]
+    due: rx.Var[int]
+    paid: rx.Var[bool]
+
+    def __init__(self, title: str = "New expense", price: float = 100.0, due: int = 1, paid: bool = False):
+        self.title = title
+        self.price = price
+        self.due = due
+        self.paid = paid
 
     def update(self, **kwargs):
         self.title = kwargs.get("title", self.title or "")
@@ -26,18 +27,22 @@ class Expense:
         self.paid = not self.paid
 
 
+@rx.serializer
+def serialize_expense(expense: Expense) -> list:
+    return json.dumps(str(expense))
+
 class State(rx.State):
     """The app state."""
 
-    expenses: list[Expense] = []
+    expenses: typing.List[Expense] = [Expense()]
     income: float = 0.0
 
     @rx.var
     def last(self) -> int:
-        return len(self.expenses) - 1
+        return max(len(self.expenses) - 1, 0)
 
-    def add_expense(self, expense: Expense = Expense()):
-        self.expenses.append(expense)
+    def add_expense(self):
+        self.expenses.append(Expense())
 
     def update_income(self, income: float):
         self.income = income
@@ -63,20 +68,19 @@ def expense_row(expense: Expense, i: int) -> rx.Component:
     return rx.vstack(
         rx.hstack(
             rx.input(
-                value=expense.title,
+                value=State.expenses.title,
                 on_change=lambda v: State.update_expense(i, v),
             ),
             rx.input(
-                value=expense.price,
+                value=State.expenses[i].price,
                 on_change=lambda v: State.update_expense(i, v),
             ),
             rx.input(
-                value=expense.due,
+                value=State.expenses[i].due,
                 on_change=lambda v: State.update_expense(i, v),
             ),
-            rx.checkbox(default_checked=expense.paid, on_click=State.toggle_paid(i)),
+            rx.checkbox(default_checked=State.expenses[i].paid, on_click=State.toggle_paid(i)),
         ),
-        rx.button(label="Add expense", on_click=new_row),
     )
 
 
@@ -84,7 +88,7 @@ def new_row() -> rx.Component:
     State.add_expense()
     index = State.last
     return rx.hstack(
-        rx.input(value="", on_change=lambda v: State.update_expense(index, v)),
+        rx.input(value="New expense", on_change=lambda v: State.update_expense(index, v)),
         rx.input(value=0.0, on_change=lambda v: State.update_expense(index, v)),
         rx.input(value=0, on_change=lambda v: State.update_expense(index, v)),
         rx.checkbox(default_checked=False, on_click=lambda: State.toggle_paid(index)),
@@ -107,7 +111,7 @@ def index() -> rx.Component:
                 size="5",
             ),
             rx.foreach(State.expenses, expense_row),
-            rx.button(on_click=new_expense(), label="Add Expense"),
+            rx.button("Add expense", on_click=new_expense()),
             min_height="85vh",
         ),
     )
@@ -115,3 +119,4 @@ def index() -> rx.Component:
 
 app = rx.App()
 app.add_page(index)
+

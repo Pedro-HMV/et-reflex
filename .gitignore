@@ -1,8 +1,7 @@
 *.db
 *.py[cod]
-.web
-__pycache__/
-
 .history/
 .vscode/
+.web
+__pycache__/
 venv/
